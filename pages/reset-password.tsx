@@ -10,43 +10,49 @@ export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-  const [validToken, setValidToken] = useState(false);
+  const [tokenValid, setTokenValid] = useState<boolean | null>(null);
 
- useEffect(() => {
-  if (!router.isReady) return;
+  useEffect(() => {
+    if (!router.isReady) return;
 
-  const { token_hash, type } = router.query;
+    const { token_hash, type } = router.query;
 
-  if (token_hash && type === 'recovery') {
-    // Supabase automaticky rozpozná token z URL a nastaví session
-    // Stačí skontrolovať či máme session
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
-        console.log('✅ Valid session from token');
-        setValidToken(true);
+    console.log('🔵 URL params:', { token_hash, type });
+
+    if (!token_hash || type !== 'recovery') {
+      console.log('❌ Missing or invalid params');
+      setError('Invalid reset link. Please request a new one.');
+      setTokenValid(false);
+      return;
+    }
+
+    // Verify the OTP token
+    console.log('🔵 Verifying OTP token...');
+    
+    supabase.auth.verifyOtp({
+      token_hash: token_hash as string,
+      type: 'recovery',
+    }).then(({ data, error: verifyError }) => {
+      if (verifyError) {
+        console.error('❌ Verify error:', verifyError);
+        setError('Invalid or expired reset link. Please request a new one.');
+        setTokenValid(false);
       } else {
-        console.log('❌ No session, trying to verify OTP...');
-        // Skús verify OTP
-        supabase.auth.verifyOtp({
-          token_hash: token_hash as string,
-          type: 'recovery',
-        }).then(({ data, error }) => {
-          if (error) {
-            console.error('Verify OTP error:', error);
-            setError('Invalid or expired reset link. Please request a new one.');
-          } else {
-            console.log('✅ OTP verified');
-            setValidToken(true);
-          }
-        });
+        console.log('✅ Token verified successfully');
+        setTokenValid(true);
       }
+    }).catch((err) => {
+      console.error('❌ Exception:', err);
+      setError('Something went wrong. Please try again.');
+      setTokenValid(false);
     });
-  } else {
-    setError('Invalid reset link.');
-  }
-}, [router.isReady, router.query]);
+  }, [router.isReady, router.query]);
 
-    // Validation
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    // Validácia
     if (!newPassword || !confirmPassword) {
       setError('Please fill in all fields');
       return;
@@ -64,45 +70,57 @@ export default function ResetPasswordPage() {
 
     try {
       setLoading(true);
+      console.log('🔵 Updating password...');
 
-      const { error } = await supabase.auth.updateUser({
+      const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
       });
 
-      if (error) {
-        setError(error.message);
+      if (updateError) {
+        console.error('❌ Update error:', updateError);
+        setError(updateError.message);
       } else {
+        console.log('✅ Password updated successfully');
         setSuccess(true);
-        // Redirect after 3 seconds
+        
+        // Redirect po 3 sekundách
         setTimeout(() => {
           window.location.href = 'https://rork.app/p/hbg41l0r3gj9du0ormjr6/login';
         }, 3000);
       }
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      console.error('❌ Exception:', err);
+      setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (!validToken && !error) {
+  // Loading state - overovanie tokenu
+  if (tokenValid === null) {
     return (
       <div className={styles.container}>
         <div className={styles.card}>
           <div className={styles.spinner}></div>
-          <p>Verifying reset link...</p>
+          <p className={styles.loadingText}>Verifying reset link...</p>
         </div>
       </div>
     );
   }
 
-  if (error && !validToken) {
+  // Error state - neplatný token
+  if (tokenValid === false) {
     return (
       <div className={styles.container}>
         <div className={styles.card}>
           <div className={styles.errorIcon}>⚠️</div>
           <h1 className={styles.errorTitle}>Invalid Reset Link</h1>
-          <p className={styles.errorText}>{error}</p>
+          <p className={styles.errorText}>
+            {error || 'This reset link is invalid or has expired.'}
+          </p>
+          <p className={styles.errorText}>
+            Please request a new password reset from the app.
+          </p>
           <a 
             href="https://rork.app/p/hbg41l0r3gj9du0ormjr6/login" 
             className={styles.backButton}
@@ -114,6 +132,7 @@ export default function ResetPasswordPage() {
     );
   }
 
+  // Success state - heslo zmenené
   if (success) {
     return (
       <div className={styles.container}>
@@ -131,6 +150,7 @@ export default function ResetPasswordPage() {
     );
   }
 
+  // Main form - zadanie nového hesla
   return (
     <div className={styles.container}>
       <div className={styles.card}>
@@ -144,7 +164,7 @@ export default function ResetPasswordPage() {
         <h1 className={styles.title}>Reset Your Password</h1>
         <p className={styles.subtitle}>Enter your new password below</p>
 
-        <form onSubmit={handleResetPassword} className={styles.form}>
+        <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>
             <label htmlFor="newPassword" className={styles.label}>
               New Password
@@ -199,7 +219,7 @@ export default function ResetPasswordPage() {
             className={styles.submitButton}
             disabled={loading}
           >
-            {loading ? 'Resetting...' : 'Reset Password'}
+            {loading ? 'Resetting Password...' : 'Reset Password'}
           </button>
         </form>
 

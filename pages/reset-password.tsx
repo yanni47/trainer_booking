@@ -20,7 +20,7 @@ export default function ResetPasswordPage() {
 
     if (token_hash && type === 'recovery') {
       // Verify session from token
-     supabase.auth.exchangeCodeForSession(token_hash as string).then(({ data, error }) => {
+     supabase.auth.exchangeCodeForSession(token_hash as string).then(({ data, error }) => 
   {
         if (error) {
           setError('Invalid or expired reset link. Please request a new one.');

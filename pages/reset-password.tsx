@@ -12,30 +12,39 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('');
   const [validToken, setValidToken] = useState(false);
 
-  useEffect(() => {
-    // Check if we have token_hash in URL
-    if (!router.isReady) return;
+ useEffect(() => {
+  if (!router.isReady) return;
 
-    const { token_hash, type } = router.query;
+  const { token_hash, type } = router.query;
 
-    if (token_hash && type === 'recovery') {
-      // Verify session from token
-     supabase.auth.exchangeCodeForSession(token_hash as string).then(({ data, error }) => 
-  {
-        if (error) {
-          setError('Invalid or expired reset link. Please request a new one.');
-        } else {
-          setValidToken(true);
-        }
-      });
-    } else {
-      setError('Invalid reset link.');
-    }
-  }, [router.isReady, router.query]);
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  if (token_hash && type === 'recovery') {
+    // Supabase automaticky rozpozná token z URL a nastaví session
+    // Stačí skontrolovať či máme session
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        console.log('✅ Valid session from token');
+        setValidToken(true);
+      } else {
+        console.log('❌ No session, trying to verify OTP...');
+        // Skús verify OTP
+        supabase.auth.verifyOtp({
+          token_hash: token_hash as string,
+          type: 'recovery',
+        }).then(({ data, error }) => {
+          if (error) {
+            console.error('Verify OTP error:', error);
+            setError('Invalid or expired reset link. Please request a new one.');
+          } else {
+            console.log('✅ OTP verified');
+            setValidToken(true);
+          }
+        });
+      }
+    });
+  } else {
+    setError('Invalid reset link.');
+  }
+}, [router.isReady, router.query]);
 
     // Validation
     if (!newPassword || !confirmPassword) {

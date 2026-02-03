@@ -1,28 +1,26 @@
 import { useEffect } from 'react';
-import { useRouter } from 'next/router';
 
 export default function ResetRedirect() {
-  const router = useRouter();
-
   useEffect(() => {
-    if (!router.isReady) return;
+    // Get params directly from window.location
+    const params = new URLSearchParams(window.location.search);
+    const tokenHash = params.get('token_hash');
+    const type = params.get('type');
 
-    const { token_hash, type } = router.query;
-
-    if (token_hash && type) {
-      // Redirect to our own reset-password page (not Rork app)
-      const resetUrl = `/reset-password?token_hash=${token_hash}&type=${type}`;
-      
-      console.log('Redirecting to:', resetUrl);
-      router.replace(resetUrl);
+    if (tokenHash && type) {
+      // Immediate redirect
+      const resetUrl = `/reset-password?token_hash=${tokenHash}&type=${type}`;
+      window.location.href = resetUrl;
+    } else {
+      console.error('Missing token_hash or type');
     }
-  }, [router.isReady, router.query, router]);
+  }, []);
 
   return (
     <div style={styles.container}>
       <div style={styles.spinner}></div>
       <h1 style={styles.title}>Redirecting...</h1>
-      <p style={styles.subtitle}>Please wait a moment</p>
+      <p style={styles.subtitle}>Please wait</p>
       
       <style jsx>{`
         @keyframes spin {
@@ -36,14 +34,14 @@ export default function ResetRedirect() {
 const styles = {
   container: {
     display: 'flex',
-    flexDirection: 'column' as const,
+    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     color: 'white',
     fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-    textAlign: 'center' as const,
+    textAlign: 'center',
     padding: '2rem',
   },
   spinner: {

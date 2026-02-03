@@ -1,0 +1,3 @@
+{
+  "/book/[token]": "pages/book/[token].js"
+}

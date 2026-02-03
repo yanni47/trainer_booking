@@ -1,0 +1,47 @@
+[00:00:02.118] Server  LOG     ✓ Ready in 1480ms
+[00:00:03.829] Browser LOG     🟢 BUTTON CLICKED! 16927b71-986b-43bc-bde0-01c3fb9fe39a
+[00:00:03.829] Browser LOG     🔵 START selectSlot
+[00:00:03.829] Browser LOG     🔵 slotId: 16927b71-986b-43bc-bde0-01c3fb9fe39a
+[00:00:03.829] Browser LOG     🔵 booking: {"booking_slots":[{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"16927b71-986b-43bc-bde0-01c3fb9fe39a","is_selected":true,"proposed_time":"2026-02-04T06:00:09.301+00:00"},{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"ca0099e1-aaef-44ba-abe2-fef0619a72ad","is_selected":false,"proposed_time":"2026-02-04T06:30:11.523+00:00"},{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"e8dbc037-c7d2-48bc-bb93-38e530f52d2a","is_selected":false,"proposed_time":"2026-02-04T09:00:35.03+00:00"}],"client":null,"client_id":"344ff1fa-22a0-469e-b4bf-ac4bbbdfbc7f","confirmed_at":null,"created_at":"2026-02-03T11:41:13.795678+00:00","id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","notes":"Jdjd","status":"pending","title":"Twys","token":"q1ez55upwva36u","trainer_id":"339722f5-df7c-477c-b6ff-b7922e921d59"}
+[00:00:03.829] Browser LOG     🔵 Setting selecting = true
+[00:00:03.829] Browser LOG     🔵 Calling Supabase update...
+[00:00:04.005] Browser LOG     🔵 Supabase response: {"data":null,"error":null}
+[00:00:04.005] Browser LOG     ✅ Update successful!
+[00:00:04.005] Browser LOG     🔵 Reloading booking...
+[00:00:04.139] Browser LOG     ✅ Done!
+[00:00:31.575] Browser LOG     🟢 BUTTON CLICKED! 16927b71-986b-43bc-bde0-01c3fb9fe39a
+[00:00:31.575] Browser LOG     🔵 START selectSlot
+[00:00:31.575] Browser LOG     🔵 slotId: 16927b71-986b-43bc-bde0-01c3fb9fe39a
+[00:00:31.575] Browser LOG     🔵 booking: {"booking_slots":[{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"16927b71-986b-43bc-bde0-01c3fb9fe39a","is_selected":true,"proposed_time":"2026-02-04T06:00:09.301+00:00"},{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"ca0099e1-aaef-44ba-abe2-fef0619a72ad","is_selected":false,"proposed_time":"2026-02-04T06:30:11.523+00:00"},{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"e8dbc037-c7d2-48bc-bb93-38e530f52d2a","is_selected":false,"proposed_time":"2026-02-04T09:00:35.03+00:00"}],"client":null,"client_id":"344ff1fa-22a0-469e-b4bf-ac4bbbdfbc7f","confirmed_at":null,"created_at":"2026-02-03T11:41:13.795678+00:00","id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","notes":"Jdjd","status":"pending","title":"Twys","token":"q1ez55upwva36u","trainer_id":"339722f5-df7c-477c-b6ff-b7922e921d59"}
+[00:00:31.575] Browser LOG     🔵 Setting selecting = true
+[00:00:31.575] Browser LOG     🔵 Calling Supabase update...
+[00:00:31.773] Browser LOG     🔵 Supabase response: {"data":null,"error":null}
+[00:00:31.773] Browser LOG     ✅ Update successful!
+[00:00:31.773] Browser LOG     🔵 Reloading booking...
+[00:00:31.773] Browser LOG     ✅ Done!
+[00:01:22.906] Browser LOG     🟢 BUTTON CLICKED! 16927b71-986b-43bc-bde0-01c3fb9fe39a
+[00:01:22.906] Browser LOG     🔵 START selectSlot
+[00:01:22.906] Browser LOG     🔵 slotId: 16927b71-986b-43bc-bde0-01c3fb9fe39a
+[00:01:22.906] Browser LOG     🔵 booking: {"booking_slots":[{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"16927b71-986b-43bc-bde0-01c3fb9fe39a","is_selected":true,"proposed_time":"2026-02-04T06:00:09.301+00:00"},{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"ca0099e1-aaef-44ba-abe2-fef0619a72ad","is_selected":false,"proposed_time":"2026-02-04T06:30:11.523+00:00"},{"booking_id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","created_at":"2026-02-03T11:41:13.928836+00:00","id":"e8dbc037-c7d2-48bc-bb93-38e530f52d2a","is_selected":false,"proposed_time":"2026-02-04T09:00:35.03+00:00"}],"client":null,"client_id":"344ff1fa-22a0-469e-b4bf-ac4bbbdfbc7f","confirmed_at":null,"created_at":"2026-02-03T11:41:13.795678+00:00","id":"6b0c8d7f-4148-454a-a5e4-aa4d7d7f85fd","notes":"Jdjd","status":"pending","title":"Twys","token":"q1ez55upwva36u","trainer_id":"339722f5-df7c-477c-b6ff-b7922e921d59"}
+[00:01:22.906] Browser LOG     🔵 Setting selecting = true
+[00:01:22.906] Browser LOG     🔵 Calling Supabase update...
+[00:01:22.906] Browser LOG     🔵 Supabase response: {"data":null,"error":null}
+[00:01:22.906] Browser LOG     ✅ Update successful!
+[00:01:22.906] Browser LOG     🔵 Reloading booking...
+[00:01:22.906] Browser LOG     ✅ Done!
+[00:01:22.906] Browser ERROR   uncaughtError: TypeError: Cannot read properties of null (reading 'name')
+[00:01:22.906] Browser ERROR   uncaughtError: TypeError: Cannot read properties of null (reading 'name')
+[00:01:22.906] Browser ERROR   The above error occurred in the <BookingPage> component:
+
+    at BookingPage (http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__f543415f._.js:540:160)
+    at App (http://localhost:3000/_next/static/chunks/%5Broot-of-the-server%5D__73ecdec8._.js:475:16)
+    at PathnameContextProviderAdapter (http://localhost:3000/_next/static/chunks/node_modules_next_dist_shared_lib_8bac8163._.js:5355:43)
+    at PagesDevOverlayErrorBoundary (http://localhost:3000/_next/static/chunks/node_modules_next_dist_75b597d7._.js:1117:9)
+    at PagesDevOverlayBridge (http://localhost:3000/_next/static/chunks/node_modules_next_dist_75b597d7._.js:1894:34)
+    at Container (http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_5a8a528e._.js:3085:1)
+    at AppContainer (http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_5a8a528e._.js:3184:25)
+    at Root (http://localhost:3000/_next/static/chunks/node_modules_next_dist_client_5a8a528e._.js:3392:17)
+
+React will try to recreate this component tree from scratch using the error boundary you provided, PagesDevOverlayErrorBoundary.
+[00:03:28.829] Server  LOG     ✓ Compiled in 251ms
+[00:03:57.812] Server  LOG     ✓ Compiled in 22ms

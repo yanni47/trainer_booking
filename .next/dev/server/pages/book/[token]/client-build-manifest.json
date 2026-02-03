@@ -1,0 +1,5 @@
+{
+  "/book/[token]": [
+    "static/chunks/pages/book/[token].js"
+  ]
+}

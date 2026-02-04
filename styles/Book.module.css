@@ -289,3 +289,212 @@
     font-size: 1.625rem;
   }
 }
+
+/* Pridaj toto na KONIEC existujúceho Book.module.css */
+
+/* Confirmation Dialog */
+.dialogOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.dialogCard {
+  background: white;
+  border-radius: 20px;
+  max-width: 440px;
+  width: 100%;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dialogHeader {
+  padding: 1.75rem 1.75rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dialogTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+  text-align: center;
+}
+
+.dialogContent {
+  padding: 1.5rem 1.75rem;
+}
+
+.dialogText {
+  font-size: 1rem;
+  color: #6b7280;
+  text-align: center;
+  margin: 0 0 1.5rem 0;
+}
+
+.dialogTimeBox {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.dialogDate {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 0.5rem;
+}
+
+.dialogTime {
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+}
+
+.dialogSessionTitle {
+  font-size: 0.9375rem;
+  color: #e85d4c;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 1.25rem 0;
+}
+
+.dialogWarning {
+  font-size: 0.875rem;
+  color: #ef4444;
+  text-align: center;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin: 0;
+}
+
+.dialogActions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 1.25rem 1.75rem 1.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dialogCancelButton {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.dialogCancelButton:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.dialogCancelButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dialogConfirmButton {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: white;
+  background: #e85d4c;
+  border: 2px solid #e85d4c;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.dialogConfirmButton:hover {
+  background: #d14d3d;
+  border-color: #d14d3d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(232, 93, 76, 0.3);
+}
+
+.dialogConfirmButton:active {
+  transform: translateY(0);
+}
+
+.dialogConfirmButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .dialogCard {
+    margin: 1rem;
+  }
+
+  .dialogHeader {
+    padding: 1.5rem 1.5rem 0.875rem;
+  }
+
+  .dialogTitle {
+    font-size: 1.25rem;
+  }
+
+  .dialogContent {
+    padding: 1.25rem 1.5rem;
+  }
+
+  .dialogTime {
+    font-size: 1.75rem;
+  }
+
+  .dialogActions {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.5rem 1.5rem;
+  }
+
+  .dialogCancelButton,
+  .dialogConfirmButton {
+    width: 100%;
+  }
+}

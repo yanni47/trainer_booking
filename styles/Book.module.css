@@ -273,7 +273,7 @@
 .successCard {
   background: #1C2128;
   border-radius: 24px;
-  padding: 3rem 2.5rem;
+  padding: 2.5rem 2rem 2rem;
   max-width: 480px;
   width: 100%;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -281,54 +281,65 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
+}
+
+.logoIcon {
+  width: 80px;
+  height: 80px;
+  background: #2D3748;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FF6B4A;
+  margin-bottom: 1rem;
 }
 
 .successCheck {
-  width: 80px;
-  height: 80px;
+  width: 56px;
+  height: 56px;
   background: #10B981;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 3rem;
+  font-size: 1.75rem;
   color: white;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .successTitle {
-  font-size: 2rem;
+  font-size: 1.75rem;
   font-weight: 700;
   color: #F9FAFB;
-  margin: 0;
+  margin: 0 0 0.5rem 0;
 }
 
 .successSubtitle {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   color: #9CA3AF;
-  margin: 0 0 1rem 0;
+  margin: 0 0 1.5rem 0;
 }
 
 .confirmedTimeCard {
   background: #2D3748;
   border: 2px solid #FF6B4A;
   border-radius: 20px;
-  padding: 2rem;
+  padding: 1.25rem 1.75rem;
   width: 100%;
   margin-bottom: 1rem;
 }
 
 .confirmedDate {
-  font-size: 1.125rem;
-  font-weight: 600;
+  font-size: 0.9375rem;
+  font-weight: 500;
   color: #D1D5DB;
   margin-bottom: 0.5rem;
 }
 
 .confirmedTime {
-  font-size: 2.5rem;
+  font-size: 1.875rem;
   font-weight: 700;
   color: #FF6B4A;
 }
@@ -336,18 +347,19 @@
 .sessionType {
   background: rgba(255, 107, 74, 0.15);
   color: #FF6B4A;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1.25rem;
   border-radius: 20px;
+  margin-bottom: 1rem;
+  display: inline-block;
 }
 
 .successNote {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   color: #9CA3AF;
   margin: 0.5rem 0 0 0;
 }
-
 /* Confirmation Dialog */
 .dialogOverlay {
   position: fixed;

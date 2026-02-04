@@ -17,11 +17,12 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [slotToConfirm, setSlotToConfirm] = useState<BookingSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!token || typeof token !== 'string') return;
-
     loadBooking(token);
   }, [token]);
 
@@ -30,7 +31,6 @@ export default function BookingPage() {
       setLoading(true);
       setError(null);
 
-      // Fetch booking by token
       const { data, error: fetchError } = await supabase
         .from('bookings')
         .select(`
@@ -46,7 +46,6 @@ export default function BookingPage() {
         return;
       }
 
-      // Check if already confirmed
       if (data.status === 'confirmed') {
         setError('This booking has already been confirmed');
         setBooking(data as BookingWithDetails);
@@ -67,53 +66,54 @@ export default function BookingPage() {
     }
   }
 
-  async function selectSlot(slotId: string) {
-  console.log('🔵 START selectSlot');
-  console.log('🔵 slotId:', slotId);
-  console.log('🔵 booking:', booking);
-  
-  if (!booking) {
-    console.log('🔴 No booking!');
-    return;
+  function handleSlotClick(slot: BookingSlot) {
+    // Show confirmation dialog
+    setSlotToConfirm(slot);
+    setShowConfirmDialog(true);
   }
 
-  try {
-    console.log('🔵 Setting selecting = true');
-    setSelecting(true);
-    setSelectedSlotId(slotId);
+  function handleCancelConfirm() {
+    setShowConfirmDialog(false);
+    setSlotToConfirm(null);
+  }
 
-    console.log('🔵 Calling Supabase update...');
-    
-    const { data, error: updateError } = await supabase
-      .from('booking_slots')
-      .update({ is_selected: true })
-      .eq('id', slotId);
+  async function handleConfirmBooking() {
+    if (!slotToConfirm || !booking) return;
 
-    console.log('🔵 Supabase response:', { data, error: updateError });
+    try {
+      setSelecting(true);
+      setSelectedSlotId(slotToConfirm.id);
+      setShowConfirmDialog(false);
 
-    if (updateError) {
-      console.error('🔴 Update error:', updateError);
-      setError('Failed to confirm booking. Please try again.');
+      console.log('🔵 Confirming slot:', slotToConfirm.id);
+
+      const { error: updateError } = await supabase
+        .from('booking_slots')
+        .update({ is_selected: true })
+        .eq('id', slotToConfirm.id);
+
+      if (updateError) {
+        console.error('🔴 Error updating slot:', updateError);
+        setError('Failed to confirm booking. Please try again.');
+        setSelectedSlotId(null);
+        return;
+      }
+
+      console.log('✅ Slot confirmed successfully!');
+
+      // Reload booking
+      if (token && typeof token === 'string') {
+        await loadBooking(token);
+      }
+    } catch (err) {
+      console.error('🔴 Exception:', err);
+      setError('Something went wrong');
       setSelectedSlotId(null);
-      return;
+    } finally {
+      setSelecting(false);
+      setSlotToConfirm(null);
     }
-
-    console.log('✅ Update successful!');
-    console.log('🔵 Reloading booking...');
-
-    if (token && typeof token === 'string') {
-      await loadBooking(token);
-    }
-
-    console.log('✅ Done!');
-  } catch (err) {
-    console.error('🔴 Exception:', err);
-    setError('Something went wrong');
-    setSelectedSlotId(null);
-  } finally {
-    setSelecting(false);
   }
-}
 
   if (loading) {
     return (
@@ -186,10 +186,7 @@ export default function BookingPage() {
               <button
                 key={slot.id}
                 className={styles.slotButton}
-                onClick={() => {
-                console.log('🟢 BUTTON CLICKED!', slot.id);
-                selectSlot(slot.id);
-}}
+                onClick={() => handleSlotClick(slot)}
                 disabled={selecting}
               >
                 <div className={styles.slotNumber}>Option {index + 1}</div>
@@ -215,6 +212,59 @@ export default function BookingPage() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && slotToConfirm && (
+        <div className={styles.dialogOverlay} onClick={handleCancelConfirm}>
+          <div className={styles.dialogCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.dialogHeader}>
+              <h2 className={styles.dialogTitle}>Confirm Your Booking</h2>
+            </div>
+            
+            <div className={styles.dialogContent}>
+              <p className={styles.dialogText}>
+                You're about to confirm your session for:
+              </p>
+              
+              <div className={styles.dialogTimeBox}>
+                <div className={styles.dialogDate}>
+                  {format(parseISO(slotToConfirm.proposed_time), 'EEEE, MMMM d, yyyy')}
+                </div>
+                <div className={styles.dialogTime}>
+                  {format(parseISO(slotToConfirm.proposed_time), 'h:mm a')}
+                </div>
+              </div>
+
+              {booking?.title && (
+                <p className={styles.dialogSessionTitle}>
+                  Session: {booking.title}
+                </p>
+              )}
+
+              <p className={styles.dialogWarning}>
+                Once confirmed, this booking cannot be changed.
+              </p>
+            </div>
+
+            <div className={styles.dialogActions}>
+              <button 
+                className={styles.dialogCancelButton}
+                onClick={handleCancelConfirm}
+                disabled={selecting}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.dialogConfirmButton}
+                onClick={handleConfirmBooking}
+                disabled={selecting}
+              >
+                {selecting ? 'Confirming...' : 'Confirm Booking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,11 +2,51 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase, type Booking, type BookingSlot, type Client } from '../../lib/supabase';
 import { format, parseISO } from 'date-fns';
+import { sk, enUS } from 'date-fns/locale';
 import styles from '../../styles/Book.module.css';
 
 type BookingWithDetails = Booking & {
   client: Client;
   booking_slots: BookingSlot[];
+};
+
+const translations = {
+  en: {
+    pickTime: 'Pick Your Time',
+    loading: 'Loading...',
+    notAvailable: 'Booking Not Available',
+    contactTrainer: 'If you believe this is a mistake, please contact your trainer.',
+    allSet: "You're All Set!",
+    sessionConfirmed: 'Your session is confirmed',
+    seeYou: 'See you then!',
+    noteFromTrainer: 'Note from trainer',
+    confirmTime: 'Confirm This Time?',
+    lockIn: 'This will lock in your session time',
+    goBack: 'Go Back',
+    confirm: 'Confirm',
+    confirming: 'Confirming...',
+    unableToLoad: 'Unable to load booking',
+    unableToConfirm: 'Unable to confirm booking. Please try again.',
+    bookingCancelled: 'This booking has been cancelled',
+  },
+  sk: {
+    pickTime: 'Vyberte si čas',
+    loading: 'Načítavam...',
+    notAvailable: 'Rezervácia nedostupná',
+    contactTrainer: 'Ak si myslíte, že je to chyba, kontaktujte svojho trénera.',
+    allSet: 'Máte hotovo!',
+    sessionConfirmed: 'Váš tréning je potvrdený',
+    seeYou: 'Vidíme sa!',
+    noteFromTrainer: 'Poznámka od trénera',
+    confirmTime: 'Potvrdiť tento čas?',
+    lockIn: 'Týmto potvrdíte čas tréningu',
+    goBack: 'Späť',
+    confirm: 'Potvrdiť',
+    confirming: 'Potvrdzujem...',
+    unableToLoad: 'Nepodarilo sa načítať rezerváciu',
+    unableToConfirm: 'Nepodarilo sa potvrdiť rezerváciu. Skúste prosím znova.',
+    bookingCancelled: 'Táto rezervácia bola zrušená',
+  },
 };
 
 export default function BookingPage() {
@@ -20,6 +60,18 @@ export default function BookingPage() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [slotToConfirm, setSlotToConfirm] = useState<BookingSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  const [lang, setLang] = useState<'en' | 'sk'>('en');
+  
+  useEffect(() => {
+    const browserLang = navigator.language.toLowerCase();
+    if (browserLang.startsWith('sk')) {
+      setLang('sk');
+    }
+  }, []);
+
+  const t = translations[lang];
+  const dateLocale = lang === 'sk' ? sk : enUS;
 
   useEffect(() => {
     if (!token || typeof token !== 'string') return;
@@ -42,32 +94,29 @@ export default function BookingPage() {
         .single();
 
       if (fetchError || !data) {
-        setError('Booking not found');
+        setError(t.notAvailable);
         return;
       }
 
       if (data.status === 'confirmed') {
-        setError('This booking has already been confirmed');
         setBooking(data as BookingWithDetails);
         return;
       }
 
       if (data.status === 'cancelled') {
-        setError('This booking has been cancelled');
+        setError(t.bookingCancelled);
         return;
       }
 
       setBooking(data as BookingWithDetails);
     } catch (err) {
-      console.error('Error loading booking:', err);
-      setError('Something went wrong');
+      setError(t.unableToLoad);
     } finally {
       setLoading(false);
     }
   }
 
   function handleSlotClick(slot: BookingSlot) {
-    // Show confirmation dialog
     setSlotToConfirm(slot);
     setShowConfirmDialog(true);
   }
@@ -85,29 +134,22 @@ export default function BookingPage() {
       setSelectedSlotId(slotToConfirm.id);
       setShowConfirmDialog(false);
 
-      console.log('🔵 Confirming slot:', slotToConfirm.id);
-
       const { error: updateError } = await supabase
         .from('booking_slots')
         .update({ is_selected: true })
         .eq('id', slotToConfirm.id);
 
       if (updateError) {
-        console.error('🔴 Error updating slot:', updateError);
-        setError('Failed to confirm booking. Please try again.');
+        setError(t.unableToConfirm);
         setSelectedSlotId(null);
         return;
       }
 
-      console.log('✅ Slot confirmed successfully!');
-
-      // Reload booking
       if (token && typeof token === 'string') {
         await loadBooking(token);
       }
     } catch (err) {
-      console.error('🔴 Exception:', err);
-      setError('Something went wrong');
+      setError(t.unableToConfirm);
       setSelectedSlotId(null);
     } finally {
       setSelecting(false);
@@ -119,8 +161,16 @@ export default function BookingPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
+          <div className={styles.logoIcon}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
           <div className={styles.spinner}></div>
-          <p>Loading...</p>
+          <p>{t.loading}</p>
         </div>
       </div>
     );
@@ -129,10 +179,17 @@ export default function BookingPage() {
   if (error && !booking) {
     return (
       <div className={styles.container}>
-        <div className={styles.error}>
-          <div className={styles.errorIcon}>⚠️</div>
-          <h2>{error}</h2>
-          <p>Please contact your trainer if this is an error.</p>
+        <div className={styles.errorCard}>
+          <div className={styles.logoIcon}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <h1 className={styles.errorTitle}>{error}</h1>
+          <p className={styles.errorHint}>{t.contactTrainer}</p>
         </div>
       </div>
     );
@@ -140,27 +197,38 @@ export default function BookingPage() {
 
   if (booking?.status === 'confirmed') {
     const confirmedSlot = booking.booking_slots.find((s) => s.is_selected);
+    
     return (
       <div className={styles.container}>
-        <div className={styles.success}>
-          <div className={styles.successIcon}>✓</div>
-          <h1>Booking Confirmed!</h1>
-          <p className={styles.clientName}>Hi {booking?.client?.name},</p>
-          <p>Your session has been confirmed for:</p>
+        <div className={styles.successCard}>
+          <div className={styles.logoIcon}>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          <div className={styles.successCheck}>✓</div>
+          <h1 className={styles.successTitle}>{t.allSet}</h1>
+          <p className={styles.successSubtitle}>{t.sessionConfirmed}</p>
+          
           {confirmedSlot && (
-            <div className={styles.confirmedTime}>
-              <p className={styles.confirmedDate}>
-                {format(parseISO(confirmedSlot.proposed_time), 'EEEE, MMMM d, yyyy')}
-              </p>
-              <p className={styles.confirmedHour}>
-                {format(parseISO(confirmedSlot.proposed_time), 'h:mm a')}
-              </p>
+            <div className={styles.confirmedTimeCard}>
+              <div className={styles.confirmedDate}>
+                {format(parseISO(confirmedSlot.proposed_time), 'EEEE, d. MMMM yyyy', { locale: dateLocale })}
+              </div>
+              <div className={styles.confirmedTime}>
+                {format(parseISO(confirmedSlot.proposed_time), 'HH:mm')}
+              </div>
             </div>
           )}
-          {booking?.title && (
-            <p className={styles.sessionTitle}>{booking?.title}</p>
+
+          {booking.title && (
+            <div className={styles.sessionType}>{booking.title}</div>
           )}
-          <p className={styles.successNote}>You're all set! See you then.</p>
+
+          <p className={styles.successNote}>{t.seeYou}</p>
         </div>
       </div>
     );
@@ -169,33 +237,62 @@ export default function BookingPage() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Choose Your Time</h1>
-          <p className={styles.subtitle}>Hi {booking?.client?.name}!</p>
-          {booking?.title && (
-            <p className={styles.sessionInfo}>Session: {booking?.title}</p>
-          )}
+        <div className={styles.cardHeader}>
+          <div className={styles.logoIcon}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+          </div>
+          
+          <div className={styles.langToggle}>
+            <button
+              className={lang === 'en' ? styles.langActive : styles.langInactive}
+              onClick={() => setLang('en')}
+            >
+              EN
+            </button>
+            <button
+              className={lang === 'sk' ? styles.langActive : styles.langInactive}
+              onClick={() => setLang('sk')}
+            >
+              SK
+            </button>
+          </div>
         </div>
+
+        <h1 className={styles.title}>{t.pickTime}</h1>
+        
+        {booking?.title && (
+          <div className={styles.sessionBadge}>{booking.title}</div>
+        )}
 
         <div className={styles.slotsList}>
           {booking?.booking_slots
             ?.sort((a, b) => 
               new Date(a.proposed_time).getTime() - new Date(b.proposed_time).getTime()
             )
-            .map((slot, index) => (
+            .map((slot) => (
               <button
                 key={slot.id}
                 className={styles.slotButton}
                 onClick={() => handleSlotClick(slot)}
                 disabled={selecting}
               >
-                <div className={styles.slotNumber}>Option {index + 1}</div>
-                <div className={styles.slotDate}>
-                  {format(parseISO(slot.proposed_time), 'EEEE, MMMM d')}
+                <div className={styles.slotContent}>
+                  <div className={styles.slotLeft}>
+                    <div className={styles.slotDate}>
+                      {format(parseISO(slot.proposed_time), 'EEE, d. MMM', { locale: dateLocale })}
+                    </div>
+                    <div className={styles.slotTime}>
+                      {format(parseISO(slot.proposed_time), 'HH:mm')}
+                    </div>
+                  </div>
+                  <div className={styles.slotArrow}>→</div>
                 </div>
-                <div className={styles.slotTime}>
-                  {format(parseISO(slot.proposed_time), 'h:mm a')}
-                </div>
+                
                 {selecting && selectedSlotId === slot.id && (
                   <div className={styles.slotLoading}>
                     <div className={styles.spinner}></div>
@@ -206,44 +303,35 @@ export default function BookingPage() {
         </div>
 
         {booking?.notes && (
-          <div className={styles.notes}>
-            <p className={styles.notesLabel}>Notes from your trainer:</p>
-            <p className={styles.notesText}>{booking.notes}</p>
+          <div className={styles.notesCard}>
+            <div className={styles.notesLabel}>{t.noteFromTrainer}</div>
+            <div className={styles.notesText}>{booking.notes}</div>
           </div>
         )}
       </div>
 
-      {/* Confirmation Dialog */}
       {showConfirmDialog && slotToConfirm && (
         <div className={styles.dialogOverlay} onClick={handleCancelConfirm}>
           <div className={styles.dialogCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.dialogHeader}>
-              <h2 className={styles.dialogTitle}>Confirm Your Booking</h2>
+              <h2 className={styles.dialogTitle}>{t.confirmTime}</h2>
             </div>
             
             <div className={styles.dialogContent}>
-              <p className={styles.dialogText}>
-                You're about to confirm your session for:
-              </p>
-              
               <div className={styles.dialogTimeBox}>
                 <div className={styles.dialogDate}>
-                  {format(parseISO(slotToConfirm.proposed_time), 'EEEE, MMMM d, yyyy')}
+                  {format(parseISO(slotToConfirm.proposed_time), 'EEEE, d. MMMM', { locale: dateLocale })}
                 </div>
                 <div className={styles.dialogTime}>
-                  {format(parseISO(slotToConfirm.proposed_time), 'h:mm a')}
+                  {format(parseISO(slotToConfirm.proposed_time), 'HH:mm')}
                 </div>
               </div>
 
               {booking?.title && (
-                <p className={styles.dialogSessionTitle}>
-                  Session: {booking.title}
-                </p>
+                <div className={styles.dialogSessionBadge}>{booking.title}</div>
               )}
 
-              <p className={styles.dialogWarning}>
-                Once confirmed, this booking cannot be changed.
-              </p>
+              <p className={styles.dialogWarning}>{t.lockIn}</p>
             </div>
 
             <div className={styles.dialogActions}>
@@ -252,14 +340,14 @@ export default function BookingPage() {
                 onClick={handleCancelConfirm}
                 disabled={selecting}
               >
-                Cancel
+                {t.goBack}
               </button>
               <button 
                 className={styles.dialogConfirmButton}
                 onClick={handleConfirmBooking}
                 disabled={selecting}
               >
-                {selecting ? 'Confirming...' : 'Confirm Booking'}
+                {selecting ? t.confirming : t.confirm}
               </button>
             </div>
           </div>

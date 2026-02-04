@@ -3,12 +3,6 @@
    Colors: #0F1419 (dark bg), #FF6B4A (coral button), #1C2128 (card bg)
    ============================================================================ */
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 .container {
   min-height: 100vh;
   display: flex;

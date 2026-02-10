@@ -2,7 +2,6 @@ import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { supabase, type Booking, type BookingSlot, type Client } from '../../lib/supabase';
 import { format, parseISO } from 'date-fns';
-import { sk, enUS } from 'date-fns/locale';
 import styles from '../../styles/Book.module.css';
 
 type BookingWithDetails = Booking & {
@@ -10,44 +9,37 @@ type BookingWithDetails = Booking & {
   booking_slots: BookingSlot[];
 };
 
-const translations = {
-  en: {
-    pickTime: 'Pick Your Time',
-    loading: 'Loading...',
-    notAvailable: 'Booking Not Available',
-    contactTrainer: 'If you believe this is a mistake, please contact your trainer.',
-    allSet: "You're All Set!",
-    sessionConfirmed: 'Your session is confirmed',
-    seeYou: 'See you then!',
-    noteFromTrainer: 'Note from trainer',
-    confirmTime: 'Confirm This Time?',
-    lockIn: 'This will lock in your session time',
-    goBack: 'Go Back',
-    confirm: 'Confirm',
-    confirming: 'Confirming...',
-    unableToLoad: 'Unable to load booking',
-    unableToConfirm: 'Unable to confirm booking. Please try again.',
-    bookingCancelled: 'This booking has been cancelled',
-  },
-sk: {
-  pickTime: 'Vyberte si čas',
-  loading: 'Načítavam...',
-  notAvailable: 'Rezervácia nedostupná',
-  contactTrainer: 'Ak si myslíte, že je to chyba, kontaktujte svojho trénera.',
-  allSet: 'Všetko je potvrdené!',  // ← ZMENENÉ (bolo "Máte hotovo!")
-  sessionConfirmed: 'Váš tréning je potvrdený',
-  seeYou: 'Vidíme sa!',
-  noteFromTrainer: 'Poznámka od trénera',
-  confirmTime: 'Potvrdiť tento čas?',
-  lockIn: 'Týmto potvrdíte čas tréningu',
-  goBack: 'Späť',
-  confirm: 'Potvrdiť',
-  confirming: 'Potvrdzujem...',
-  unableToLoad: 'Nepodarilo sa načítať rezerváciu',
-  unableToConfirm: 'Nepodarilo sa potvrdiť rezerváciu. Skúste prosím znova.',
-  bookingCancelled: 'Táto rezervácia bola zrušená',
-},
-};
+// Pošli push notifikáciu cez Expo Push API
+async function sendPushNotification(
+  pushToken: string,
+  clientName: string,
+  confirmedTime: string
+) {
+  const message = {
+    to: pushToken,
+    sound: 'default',
+    title: '✅ Booking Confirmed!',
+    body: `${clientName} confirmed: ${confirmedTime}`,
+    data: { type: 'booking_confirmed' },
+  };
+
+  try {
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
+
+    const result = await response.json();
+    console.log('Push notification result:', result);
+  } catch (error) {
+    // Notifikácia nie je kritická - booking je potvrdený aj bez nej
+    console.error('Error sending push notification:', error);
+  }
+}
 
 export default function BookingPage() {
   const router = useRouter();
@@ -57,21 +49,7 @@ export default function BookingPage() {
   const [loading, setLoading] = useState(true);
   const [selecting, setSelecting] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [slotToConfirm, setSlotToConfirm] = useState<BookingSlot | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  const [lang, setLang] = useState<'en' | 'sk'>('en');
-  
-  useEffect(() => {
-    const browserLang = navigator.language.toLowerCase();
-    if (browserLang.startsWith('sk')) {
-      setLang('sk');
-    }
-  }, []);
-
-  const t = translations[lang];
-  const dateLocale = lang === 'sk' ? sk : enUS;
 
   useEffect(() => {
     if (!token || typeof token !== 'string') return;
@@ -94,66 +72,96 @@ export default function BookingPage() {
         .single();
 
       if (fetchError || !data) {
-        setError(t.notAvailable);
+        setError('Booking not found');
         return;
       }
 
       if (data.status === 'confirmed') {
+        setError('This booking has already been confirmed');
         setBooking(data as BookingWithDetails);
         return;
       }
 
       if (data.status === 'cancelled') {
-        setError(t.bookingCancelled);
+        setError('This booking has been cancelled');
         return;
       }
 
       setBooking(data as BookingWithDetails);
     } catch (err) {
-      setError(t.unableToLoad);
+      console.error('Error loading booking:', err);
+      setError('Something went wrong');
     } finally {
       setLoading(false);
     }
   }
 
-  function handleSlotClick(slot: BookingSlot) {
-    setSlotToConfirm(slot);
-    setShowConfirmDialog(true);
-  }
-
-  function handleCancelConfirm() {
-    setShowConfirmDialog(false);
-    setSlotToConfirm(null);
-  }
-
-  async function handleConfirmBooking() {
-    if (!slotToConfirm || !booking) return;
+  async function selectSlot(slotId: string) {
+    if (!booking) return;
 
     try {
       setSelecting(true);
-      setSelectedSlotId(slotToConfirm.id);
-      setShowConfirmDialog(false);
+      setSelectedSlotId(slotId);
 
-      const { error: updateError } = await supabase
+      // 1. Označ slot ako vybraný
+      const { error: slotError } = await supabase
         .from('booking_slots')
         .update({ is_selected: true })
-        .eq('id', slotToConfirm.id);
+        .eq('id', slotId);
 
-      if (updateError) {
-        setError(t.unableToConfirm);
+      if (slotError) {
+        console.error('Slot update error:', slotError);
+        setError('Failed to confirm booking. Please try again.');
         setSelectedSlotId(null);
         return;
       }
 
+      // 2. Zmeň status bookingu na confirmed
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ status: 'confirmed' })
+        .eq('id', booking.id);
+
+      if (bookingError) {
+        console.error('Booking status update error:', bookingError);
+        // Slot je už označený, pokračujeme aj bez status update
+      }
+
+      // 3. Načítaj push token trénera a pošli notifikáciu
+      const confirmedSlot = booking.booking_slots.find(s => s.id === slotId);
+
+      if (confirmedSlot) {
+        const confirmedTimeFormatted = format(
+          parseISO(confirmedSlot.proposed_time),
+          'EEE, MMM d \'at\' h:mm a'
+        );
+
+        const { data: trainerData } = await supabase
+          .from('trainers')
+          .select('push_token')
+          .eq('id', booking.trainer_id)
+          .single();
+
+        if (trainerData?.push_token) {
+          await sendPushNotification(
+            trainerData.push_token,
+            booking.client?.name || 'Client',
+            confirmedTimeFormatted
+          );
+        }
+      }
+
+      // 4. Reload stránky
       if (token && typeof token === 'string') {
         await loadBooking(token);
       }
+
     } catch (err) {
-      setError(t.unableToConfirm);
+      console.error('Exception in selectSlot:', err);
+      setError('Something went wrong');
       setSelectedSlotId(null);
     } finally {
       setSelecting(false);
-      setSlotToConfirm(null);
     }
   }
 
@@ -161,16 +169,8 @@ export default function BookingPage() {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
-          <div className={styles.logoIcon}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-          </div>
           <div className={styles.spinner}></div>
-          <p>{t.loading}</p>
+          <p>Loading...</p>
         </div>
       </div>
     );
@@ -179,123 +179,73 @@ export default function BookingPage() {
   if (error && !booking) {
     return (
       <div className={styles.container}>
-        <div className={styles.errorCard}>
-          <div className={styles.logoIcon}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-          </div>
-          <h1 className={styles.errorTitle}>{error}</h1>
-          <p className={styles.errorHint}>{t.contactTrainer}</p>
+        <div className={styles.error}>
+          <div className={styles.errorIcon}>⚠️</div>
+          <h2>{error}</h2>
+          <p>Please contact your trainer if this is an error.</p>
         </div>
       </div>
     );
   }
 
-   // Success state - booking already confirmed
   if (booking?.status === 'confirmed') {
     const confirmedSlot = booking.booking_slots.find((s) => s.is_selected);
-    
     return (
       <div className={styles.container}>
-        <div className={styles.successCard}>
-          <div className={styles.successIconWrapper}>
-            <div className={styles.logoIcon}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-            </div>
-            <div className={styles.successCheck}>✓</div>
-          </div>
-
-          <h1 className={styles.successTitle}>{t.allSet}</h1>
-          <p className={styles.successSubtitle}>{t.sessionConfirmed}</p>
-          
+        <div className={styles.success}>
+          <div className={styles.successIcon}>✓</div>
+          <h1>Booking Confirmed!</h1>
+          <p className={styles.clientName}>Hi {booking?.client?.name},</p>
+          <p>Your session has been confirmed for:</p>
           {confirmedSlot && (
-            <div className={styles.confirmedTimeCard}>
-              <div className={styles.confirmedDate}>
-                {format(parseISO(confirmedSlot.proposed_time), 'EEEE, d. MMMM yyyy', { locale: dateLocale })}
-              </div>
-              <div className={styles.confirmedTime}>
-                {format(parseISO(confirmedSlot.proposed_time), 'HH:mm')}
-              </div>
+            <div className={styles.confirmedTime}>
+              <p className={styles.confirmedDate}>
+                {format(parseISO(confirmedSlot.proposed_time), 'EEEE, MMMM d, yyyy')}
+              </p>
+              <p className={styles.confirmedHour}>
+                {format(parseISO(confirmedSlot.proposed_time), 'h:mm a')}
+              </p>
             </div>
           )}
-
-          {booking.title && (
-            <div className={styles.sessionType}>{booking.title}</div>
+          {booking?.title && (
+            <p className={styles.sessionTitle}>{booking?.title}</p>
           )}
-
-          <p className={styles.successNote}>{t.seeYou}</p>
+          <p className={styles.successNote}>You're all set! See you then.</p>
         </div>
       </div>
     );
   }
+
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <div className={styles.cardHeader}>
-          <div className={styles.logoIcon}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-          </div>
-          
-          <div className={styles.langToggle}>
-            <button
-              className={lang === 'en' ? styles.langActive : styles.langInactive}
-              onClick={() => setLang('en')}
-            >
-              EN
-            </button>
-            <button
-              className={lang === 'sk' ? styles.langActive : styles.langInactive}
-              onClick={() => setLang('sk')}
-            >
-              SK
-            </button>
-          </div>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Choose Your Time</h1>
+          <p className={styles.subtitle}>Hi {booking?.client?.name}!</p>
+          {booking?.title && (
+            <p className={styles.sessionInfo}>Session: {booking?.title}</p>
+          )}
         </div>
-
-        <h1 className={styles.title}>{t.pickTime}</h1>
-        
-        {booking?.title && (
-          <div className={styles.sessionBadge}>{booking.title}</div>
-        )}
 
         <div className={styles.slotsList}>
           {booking?.booking_slots
-            ?.sort((a, b) => 
+            ?.sort((a, b) =>
               new Date(a.proposed_time).getTime() - new Date(b.proposed_time).getTime()
             )
-            .map((slot) => (
+            .map((slot, index) => (
               <button
                 key={slot.id}
                 className={styles.slotButton}
-                onClick={() => handleSlotClick(slot)}
+                onClick={() => selectSlot(slot.id)}
                 disabled={selecting}
               >
-                <div className={styles.slotContent}>
-                  <div className={styles.slotLeft}>
-                    <div className={styles.slotDate}>
-                      {format(parseISO(slot.proposed_time), 'EEE, d. MMM', { locale: dateLocale })}
-                    </div>
-                    <div className={styles.slotTime}>
-                      {format(parseISO(slot.proposed_time), 'HH:mm')}
-                    </div>
-                  </div>
-                  <div className={styles.slotArrow}>→</div>
+                <div className={styles.slotNumber}>Option {index + 1}</div>
+                <div className={styles.slotDate}>
+                  {format(parseISO(slot.proposed_time), 'EEEE, MMMM d')}
                 </div>
-                
+                <div className={styles.slotTime}>
+                  {format(parseISO(slot.proposed_time), 'h:mm a')}
+                </div>
                 {selecting && selectedSlotId === slot.id && (
                   <div className={styles.slotLoading}>
                     <div className={styles.spinner}></div>
@@ -306,56 +256,12 @@ export default function BookingPage() {
         </div>
 
         {booking?.notes && (
-          <div className={styles.notesCard}>
-            <div className={styles.notesLabel}>{t.noteFromTrainer}</div>
-            <div className={styles.notesText}>{booking.notes}</div>
+          <div className={styles.notes}>
+            <p className={styles.notesLabel}>Notes from your trainer:</p>
+            <p className={styles.notesText}>{booking.notes}</p>
           </div>
         )}
       </div>
-
-      {showConfirmDialog && slotToConfirm && (
-        <div className={styles.dialogOverlay} onClick={handleCancelConfirm}>
-          <div className={styles.dialogCard} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.dialogHeader}>
-              <h2 className={styles.dialogTitle}>{t.confirmTime}</h2>
-            </div>
-            
-            <div className={styles.dialogContent}>
-              <div className={styles.dialogTimeBox}>
-                <div className={styles.dialogDate}>
-                  {format(parseISO(slotToConfirm.proposed_time), 'EEEE, d. MMMM', { locale: dateLocale })}
-                </div>
-                <div className={styles.dialogTime}>
-                  {format(parseISO(slotToConfirm.proposed_time), 'HH:mm')}
-                </div>
-              </div>
-
-              {booking?.title && (
-                <div className={styles.dialogSessionBadge}>{booking.title}</div>
-              )}
-
-              <p className={styles.dialogWarning}>{t.lockIn}</p>
-            </div>
-
-            <div className={styles.dialogActions}>
-              <button 
-                className={styles.dialogCancelButton}
-                onClick={handleCancelConfirm}
-                disabled={selecting}
-              >
-                {t.goBack}
-              </button>
-              <button 
-                className={styles.dialogConfirmButton}
-                onClick={handleConfirmBooking}
-                disabled={selecting}
-              >
-                {selecting ? t.confirming : t.confirm}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

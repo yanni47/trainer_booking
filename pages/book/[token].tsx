@@ -36,7 +36,6 @@ async function sendPushNotification(
     const result = await response.json();
     console.log('Push notification result:', result);
   } catch (error) {
-    // Notifikácia nie je kritická - booking je potvrdený aj bez nej
     console.error('Error sending push notification:', error);
   }
 }
@@ -103,11 +102,12 @@ export default function BookingPage() {
       setSelecting(true);
       setSelectedSlotId(slotId);
 
-      // 1. Označ slot ako vybraný
+      // 1. Označ slot ako vybraný – filtrujeme aj podľa booking_id pre bezpečnosť
       const { error: slotError } = await supabase
         .from('booking_slots')
         .update({ is_selected: true })
-        .eq('id', slotId);
+        .eq('id', slotId)
+        .eq('booking_id', booking.id); // ← bezpečnostný filter
 
       if (slotError) {
         console.error('Slot update error:', slotError);
@@ -116,15 +116,16 @@ export default function BookingPage() {
         return;
       }
 
-      // 2. Zmeň status bookingu na confirmed
+      // 2. Zmeň status bookingu na confirmed (trigger to robí automaticky,
+      //    ale necháme ako zálohu)
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'confirmed' })
-        .eq('id', booking.id);
+        .eq('id', booking.id)
+        .eq('token', typeof token === 'string' ? token : ''); // ← overenie tokenu
 
       if (bookingError) {
         console.error('Booking status update error:', bookingError);
-        // Slot je už označený, pokračujeme aj bez status update
       }
 
       // 3. Načítaj push token trénera a pošli notifikáciu

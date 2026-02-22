@@ -9,37 +9,6 @@ type BookingWithDetails = Booking & {
   booking_slots: BookingSlot[];
 };
 
-// Pošli push notifikáciu cez Expo Push API
-async function sendPushNotification(
-  pushToken: string,
-  clientName: string,
-  confirmedTime: string
-) {
-  const message = {
-    to: pushToken,
-    sound: 'default',
-    title: '✅ Booking Confirmed!',
-    body: `${clientName} confirmed: ${confirmedTime}`,
-    data: { type: 'booking_confirmed' },
-  };
-
-  try {
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-
-    const result = await response.json();
-    console.log('Push notification result:', result);
-  } catch (error) {
-    console.error('Error sending push notification:', error);
-  }
-}
-
 export default function BookingPage() {
   const router = useRouter();
   const { token } = router.query;
@@ -49,6 +18,9 @@ export default function BookingPage() {
   const [selecting, setSelecting] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [slotToConfirm, setSlotToConfirm] = useState<BookingSlot | null>(null);
+  const [language, setLanguage] = useState<'en' | 'sk'>('en');
 
   useEffect(() => {
     if (!token || typeof token !== 'string') return;
@@ -95,19 +67,24 @@ export default function BookingPage() {
     }
   }
 
-  async function selectSlot(slotId: string) {
-    if (!booking) return;
+  function handleSlotClick(slot: BookingSlot) {
+    setSlotToConfirm(slot);
+    setShowConfirmDialog(true);
+  }
+
+  async function confirmSlotSelection() {
+    if (!booking || !slotToConfirm) return;
 
     try {
       setSelecting(true);
-      setSelectedSlotId(slotId);
+      setSelectedSlotId(slotToConfirm.id);
+      setShowConfirmDialog(false);
 
-      // 1. Označ slot ako vybraný – filtrujeme aj podľa booking_id pre bezpečnosť
+      // 1. Mark slot as selected
       const { error: slotError } = await supabase
         .from('booking_slots')
         .update({ is_selected: true })
-        .eq('id', slotId)
-        .eq('booking_id', booking.id); // ← bezpečnostný filter
+        .eq('id', slotToConfirm.id);
 
       if (slotError) {
         console.error('Slot update error:', slotError);
@@ -116,49 +93,52 @@ export default function BookingPage() {
         return;
       }
 
-      // 2. Zmeň status bookingu na confirmed (trigger to robí automaticky,
-      //    ale necháme ako zálohu)
+      // 2. Update booking status to confirmed
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ status: 'confirmed' })
-        .eq('id', booking.id)
-        .eq('token', typeof token === 'string' ? token : ''); // ← overenie tokenu
+        .eq('id', booking.id);
 
       if (bookingError) {
         console.error('Booking status update error:', bookingError);
       }
 
-      // 3. Načítaj push token trénera a pošli notifikáciu
-      const confirmedSlot = booking.booking_slots.find(s => s.id === slotId);
+      // 3. Send push notification to trainer
+      const confirmedTimeFormatted = format(
+        parseISO(slotToConfirm.proposed_time),
+        'EEE, MMM d \'at\' h:mm a'
+      );
 
-      if (confirmedSlot) {
-        const confirmedTimeFormatted = format(
-          parseISO(confirmedSlot.proposed_time),
-          'EEE, MMM d \'at\' h:mm a'
-        );
+      const { data: trainerData } = await supabase
+        .from('trainers')
+        .select('push_token')
+        .eq('id', booking.trainer_id)
+        .single();
 
-        const { data: trainerData } = await supabase
-          .from('trainers')
-          .select('push_token')
-          .eq('id', booking.trainer_id)
-          .single();
-
-        if (trainerData?.push_token) {
-          await sendPushNotification(
-            trainerData.push_token,
-            booking.client?.name || 'Client',
-            confirmedTimeFormatted
-          );
-        }
+      if (trainerData?.push_token) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: trainerData.push_token,
+            sound: 'default',
+            title: '✅ Booking Confirmed!',
+            body: `${booking.client?.name || 'Client'} confirmed: ${confirmedTimeFormatted}`,
+            data: { type: 'booking_confirmed' },
+          }),
+        }).catch(err => console.error('Push notification error:', err));
       }
 
-      // 4. Reload stránky
+      // 4. Reload page
       if (token && typeof token === 'string') {
         await loadBooking(token);
       }
 
     } catch (err) {
-      console.error('Exception in selectSlot:', err);
+      console.error('Exception in confirmSlotSelection:', err);
       setError('Something went wrong');
       setSelectedSlotId(null);
     } finally {
@@ -166,12 +146,48 @@ export default function BookingPage() {
     }
   }
 
+  const t = (key: string) => {
+    const translations: Record<string, Record<string, string>> = {
+      en: {
+        chooseTime: 'Choose Your Time',
+        hi: 'Hi',
+        session: 'Session',
+        notesLabel: 'Notes from your trainer',
+        loading: 'Loading...',
+        confirmed: 'Booking Confirmed!',
+        confirmedFor: 'Your session has been confirmed for:',
+        allSet: "You're all set! See you then.",
+        contactTrainer: 'Please contact your trainer if this is an error.',
+        confirmTitle: 'Confirm This Time?',
+        confirmButton: 'Confirm Booking',
+        cancelButton: 'Go Back',
+        confirmWarning: "Once confirmed, you won't be able to change your selection.",
+      },
+      sk: {
+        chooseTime: 'Vyberte si čas',
+        hi: 'Ahoj',
+        session: 'Tréning',
+        notesLabel: 'Poznámky od trénera',
+        loading: 'Načítavam...',
+        confirmed: 'Rezervácia potvrdená!',
+        confirmedFor: 'Váš tréning bol potvrdený na:',
+        allSet: 'Všetko je pripravené! Vidíme sa.',
+        contactTrainer: 'Ak je to chyba, kontaktujte trénera.',
+        confirmTitle: 'Potvrdiť tento čas?',
+        confirmButton: 'Potvrdiť',
+        cancelButton: 'Späť',
+        confirmWarning: 'Po potvrdení nebude možné zmeniť výber.',
+      },
+    };
+    return translations[language][key] || key;
+  };
+
   if (loading) {
     return (
       <div className={styles.container}>
         <div className={styles.loading}>
           <div className={styles.spinner}></div>
-          <p>Loading...</p>
+          <p>{t('loading')}</p>
         </div>
       </div>
     );
@@ -180,10 +196,10 @@ export default function BookingPage() {
   if (error && !booking) {
     return (
       <div className={styles.container}>
-        <div className={styles.error}>
-          <div className={styles.errorIcon}>⚠️</div>
-          <h2>{error}</h2>
-          <p>Please contact your trainer if this is an error.</p>
+        <div className={styles.errorCard}>
+          <div style={{ fontSize: '4rem' }}>⚠️</div>
+          <h2 className={styles.errorTitle}>{error}</h2>
+          <p className={styles.errorHint}>{t('contactTrainer')}</p>
         </div>
       </div>
     );
@@ -193,25 +209,37 @@ export default function BookingPage() {
     const confirmedSlot = booking.booking_slots.find((s) => s.is_selected);
     return (
       <div className={styles.container}>
-        <div className={styles.success}>
-          <div className={styles.successIcon}>✓</div>
-          <h1>Booking Confirmed!</h1>
-          <p className={styles.clientName}>Hi {booking?.client?.name},</p>
-          <p>Your session has been confirmed for:</p>
-          {confirmedSlot && (
-            <div className={styles.confirmedTime}>
-              <p className={styles.confirmedDate}>
-                {format(parseISO(confirmedSlot.proposed_time), 'EEEE, MMMM d, yyyy')}
-              </p>
-              <p className={styles.confirmedHour}>
-                {format(parseISO(confirmedSlot.proposed_time), 'h:mm a')}
-              </p>
+        <div className={styles.successCard}>
+          <div className={styles.successIconWrapper}>
+            <div className={styles.logoIcon}>
+              <span style={{ fontSize: '1.75rem' }}>💪</span>
             </div>
+            <div className={styles.successCheck}>✓</div>
+          </div>
+
+          <h1 className={styles.successTitle}>{t('confirmed')}</h1>
+          <p className={styles.successSubtitle}>
+            {t('hi')} {booking?.client?.name}
+          </p>
+
+          {confirmedSlot && (
+            <>
+              <div className={styles.confirmedTimeCard}>
+                <p className={styles.confirmedDate}>
+                  {format(parseISO(confirmedSlot.proposed_time), 'EEEE, MMMM d, yyyy')}
+                </p>
+                <p className={styles.confirmedTime}>
+                  {format(parseISO(confirmedSlot.proposed_time), 'h:mm a')}
+                </p>
+              </div>
+
+              {booking?.title && (
+                <div className={styles.sessionType}>{booking.title}</div>
+              )}
+            </>
           )}
-          {booking?.title && (
-            <p className={styles.sessionTitle}>{booking?.title}</p>
-          )}
-          <p className={styles.successNote}>You're all set! See you then.</p>
+
+          <p className={styles.successNote}>{t('allSet')}</p>
         </div>
       </div>
     );
@@ -220,13 +248,39 @@ export default function BookingPage() {
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        <div className={styles.header}>
-          <h1 className={styles.title}>Choose Your Time</h1>
-          <p className={styles.subtitle}>Hi {booking?.client?.name}!</p>
-          {booking?.title && (
-            <p className={styles.sessionInfo}>Session: {booking?.title}</p>
-          )}
+        <div className={styles.cardHeader}>
+          <div className={styles.logoIcon}>
+            <span style={{ fontSize: '2rem' }}>💪</span>
+          </div>
+          <div className={styles.langToggle}>
+            <button
+              className={language === 'en' ? styles.langActive : styles.langInactive}
+              onClick={() => setLanguage('en')}
+            >
+              EN
+            </button>
+            <button
+              className={language === 'sk' ? styles.langActive : styles.langInactive}
+              onClick={() => setLanguage('sk')}
+            >
+              SK
+            </button>
+          </div>
         </div>
+
+        <h1 className={styles.title}>{t('chooseTime')}</h1>
+        
+        {booking?.client?.name && (
+          <p style={{ textAlign: 'center', color: '#9CA3AF', marginBottom: '1rem' }}>
+            {t('hi')} {booking.client.name}!
+          </p>
+        )}
+
+        {booking?.title && (
+          <div className={styles.sessionBadge}>
+            {t('session')}: {booking.title}
+          </div>
+        )}
 
         <div className={styles.slotsList}>
           {booking?.booking_slots
@@ -237,15 +291,19 @@ export default function BookingPage() {
               <button
                 key={slot.id}
                 className={styles.slotButton}
-                onClick={() => selectSlot(slot.id)}
+                onClick={() => handleSlotClick(slot)}
                 disabled={selecting}
               >
-                <div className={styles.slotNumber}>Option {index + 1}</div>
-                <div className={styles.slotDate}>
-                  {format(parseISO(slot.proposed_time), 'EEEE, MMMM d')}
-                </div>
-                <div className={styles.slotTime}>
-                  {format(parseISO(slot.proposed_time), 'h:mm a')}
+                <div className={styles.slotContent}>
+                  <div className={styles.slotLeft}>
+                    <div className={styles.slotDate}>
+                      {format(parseISO(slot.proposed_time), 'EEE, MMM d')}
+                    </div>
+                    <div className={styles.slotTime}>
+                      {format(parseISO(slot.proposed_time), 'h:mm a')}
+                    </div>
+                  </div>
+                  <div className={styles.slotArrow}>→</div>
                 </div>
                 {selecting && selectedSlotId === slot.id && (
                   <div className={styles.slotLoading}>
@@ -257,12 +315,65 @@ export default function BookingPage() {
         </div>
 
         {booking?.notes && (
-          <div className={styles.notes}>
-            <p className={styles.notesLabel}>Notes from your trainer:</p>
+          <div className={styles.notesCard}>
+            <p className={styles.notesLabel}>{t('notesLabel')}:</p>
             <p className={styles.notesText}>{booking.notes}</p>
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      {showConfirmDialog && slotToConfirm && (
+        <div className={styles.dialogOverlay} onClick={() => setShowConfirmDialog(false)}>
+          <div className={styles.dialogCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.dialogHeader}>
+              <h2 className={styles.dialogTitle}>{t('confirmTitle')}</h2>
+            </div>
+            
+            <div className={styles.dialogContent}>
+              <div className={styles.dialogTimeBox}>
+                <p className={styles.dialogDate}>
+                  {format(parseISO(slotToConfirm.proposed_time), 'EEEE, MMMM d, yyyy')}
+                </p>
+                <p className={styles.dialogTime}>
+                  {format(parseISO(slotToConfirm.proposed_time), 'h:mm a')}
+                </p>
+              </div>
+
+              {booking?.title && (
+                <div className={styles.dialogSessionBadge}>
+                  {booking.title}
+                </div>
+              )}
+
+              <p className={styles.dialogWarning}>
+                {t('confirmWarning')}
+              </p>
+            </div>
+
+            <div className={styles.dialogActions}>
+              <button
+                className={styles.dialogCancelButton}
+                onClick={() => setShowConfirmDialog(false)}
+                disabled={selecting}
+              >
+                {t('cancelButton')}
+              </button>
+              <button
+                className={styles.dialogConfirmButton}
+                onClick={confirmSlotSelection}
+                disabled={selecting}
+              >
+                {selecting ? (
+                  <div className={styles.spinner} style={{ width: '20px', height: '20px' }}></div>
+                ) : (
+                  t('confirmButton')
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

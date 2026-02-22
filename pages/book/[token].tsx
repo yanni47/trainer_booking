@@ -120,20 +120,15 @@ export default function BookingPage() {
 
       if (trainerData?.push_token) {
         console.log('🔔 Sending push notification...');
-        const response = await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: trainerData.push_token,
-            sound: 'default',
-            title: '✅ Booking Confirmed!',
-            body: `${booking.client?.name || 'Client'} confirmed: ${confirmedTimeFormatted}`,
-            data: { type: 'booking_confirmed' },
-          }),
-        });
+        const response = await fetch('/api/send-push', {  // ← zmeň URL
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    to: trainerData.push_token,
+    title: '✅ Booking Confirmed!',
+    body: `${booking.client?.name} confirmed: ${confirmedTimeFormatted}`,
+  }),
+});
 
         const result = await response.json();
         console.log('🔔 Push notification result:', result);

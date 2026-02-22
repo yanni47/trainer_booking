@@ -115,8 +115,12 @@ export default function BookingPage() {
         .eq('id', booking.trainer_id)
         .single();
 
+      console.log('🔔 Trainer data:', trainerData);
+      console.log('🔔 Push token:', trainerData?.push_token);
+
       if (trainerData?.push_token) {
-        await fetch('https://exp.host/--/api/v2/push/send', {
+        console.log('🔔 Sending push notification...');
+        const response = await fetch('https://exp.host/--/api/v2/push/send', {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
@@ -129,7 +133,12 @@ export default function BookingPage() {
             body: `${booking.client?.name || 'Client'} confirmed: ${confirmedTimeFormatted}`,
             data: { type: 'booking_confirmed' },
           }),
-        }).catch(err => console.error('Push notification error:', err));
+        });
+
+        const result = await response.json();
+        console.log('🔔 Push notification result:', result);
+      } else {
+        console.log('❌ No push token found for trainer');
       }
 
       // 4. Reload page
